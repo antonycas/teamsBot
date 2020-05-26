@@ -21,7 +21,8 @@ class TeamsBot extends TeamsActivityHandler {
                     user: users[0],
                     activity: context.activity
                 };
-    
+                
+                // write details to file
                 fs.readFile('data.json', (err, data) => {
                     if(err) {
                         console.log(err)
@@ -34,83 +35,48 @@ class TeamsBot extends TeamsActivityHandler {
                 });
             } 
             
-            
+            await context.sendActivity('Hello. Send a message to the bot to begin listening for errors');
             // By calling next() you ensure that the next BotHandler is run.
             await next();
         });
+
         
-        this.onMessage(async (context, next) => {
-            
-            this.readUserJSON(async data => {
-                console.log(data.conversations);
-                await data.conversations.forEach(async conversation => {
-                    const message = MessageFactory.text('There was an error');
-                    var ref = TurnContext.getConversationReference(conversation.activity);
-                    ref.user = conversation.user;
-                    
-                    console.log(context.activity.serviceUrl);
-                    MicrosoftAppCredentials.trustServiceUrl(context.activity.serviceUrl);
-                    await context.adapter.createConversation(ref, async (t1) => {
-                        const ref2 = await TurnContext.getConversationReference(t1.activity);
-                        await t1.adapter.continueConversation(ref2, async (t2) => {
-                            await t2.sendActivity(message)
-                        })
-                    });
-                })
-                // await this.messageUsersInConversations(data.conversations, context);
-            });
-            
-            await context.sendActivity('its working'); 
+        this.onMessage(async (context, next) => { 
             await next();
         });
-    }
 
-    async messageUsersInConversations(conversations, context) {
-        await conversations.forEach(async conversation => {
-            const message = MessageFactory.text('There was an error');
-            var ref = await TurnContext.getConversationReference(conversation.activity);
-            ref.user = conversation.user;
+        this.onEvent(async (context, next) => {
+            this.readUserJSON(async data => {
+                await data.conversations.forEach(async conversation => {
                     
-            await context.adapter.createConversation(ref, async (t1) => {
-                const ref2 = TurnContext.getConversationReference(t1.activity);
-                await t1.adapter.continueConversation(ref2, async (t2) => {
-                    await t2.sendActivity(message)
+                    
+                    // const message = MessageFactory.text('There was an error');
+                    // var ref = TurnContext.getConversationReference(conversation.activity);
+                    // ref.user = conversation.user;
+                    
+                    // await context.adapter.createConversation(ref, async (t1) => {
+                    //     const ref2 = TurnContext.getConversationReference(t1.activity);
+                    //     await t1.adapter.continueConversation(ref2, async (t2) => {
+                    //         await t2.sendActivity(message)
+                    //     })
+                    // });
                 })
             });
-        })
+            
+            await context.sendActivity(''); 
+            await next();
+        });
     }
 
     async readUserJSON(callback) {
         await fs.readFile('data.json', async (err, data) => {
             if(err) {
                 console.log(err)
-            } else  {
+            } else  {context
                 await callback(JSON.parse(data));
             }
         });
     }
-
-    // async sendProactiveMessage(user, context) {
-    //     context.activity.serviceUrl = 'https://smba.trafficmanager.net/uk/';
-    //     MicrosoftAppCredentials.trustServiceUrl(context.activity.serviceUrl);
-    //     const credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-    //     const connector = new ConnectorClient(credentials,{ baseUri: context.activity.serviceUrl });
-    //     const teamsCtx = TeamsContext.from(context);
-    //     const parameters = {
-    //         members: [
-    //             {id: user.id}
-    //         ],
-    //         channelData: {
-    //             tenant: {
-    //                 id: teamsCtx.tenant.id
-    //             }
-    //         }
-    //     }
-        
-    //     const conversationResource = await connector.conversations.createConversation(parameters);
-    //     const message = MessageFactory.text('This is a proactive message');
-    //     await connector.conversations.sendToConversation(conversationResource.id, message);        
-    // }
 }
 
 module.exports.TeamsBot = TeamsBot; 

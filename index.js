@@ -5,10 +5,12 @@ const dotenv = require('dotenv');
 const path = require("path");
 const restify = require('restify');
 const teams = require('botbuilder-teams');
+const fs = require('fs');
+const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
 
 // Import required bot services.
 // See https://aka.ms/bot-services to learn more about the different parts of a bot.
-const { BotFrameworkAdapter } = require('botbuilder');
+const { BotFrameworkAdapter, TurnContext } = require('botbuilder');
 
 // This bot's main dialog.
 const { TeamsBot } = require('./bot');
@@ -60,6 +62,31 @@ server.post('/api/messages', (req, res) => {
     adapter.processActivity(req, res, async (context) => {
         // Route to main dialog.
         await myBot.run(context);
+    });
+});
+
+server.get('/api/notify', async (req, res) => {
+    MicrosoftAppCredentials.trustServiceUrl('https://smba.trafficmanager.net/uk/');
+    fs.readFile('data.json', async (err, data) => {
+        var conversations = JSON.parse(data).conversations;
+        var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
+        var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
+        conversations.forEach(async conversation => {
+            
+            var activityResponse = await client.conversations.sendToConversation(conversation.activity.conversation.id, {
+                type: 'message',
+                from: {id: process.env.MicrosoftAppId},
+                text: 'heres some text.'
+            });
+
+            // var ref = TurnContext.getConversationReference(conversation.activity);
+            // ref.user = conversation.user;
+            // await adapter.continueConversation(ref, async turnContext => {
+            //     MicrosoftAppCredentials.trustServiceUrl('https://smba.trafficmanager.net/uk/');
+            //     await turnContext.sendActivity('There was an error');
+            // });
+        }); 
+        res.send(conversations);
     });
 });
 
