@@ -22,14 +22,14 @@ class TeamsBot extends TeamsActivityHandler {
                 };
                 
                 // write details to file
-                fs.readFile('conversations.json', (err, data) => {
+                fs.readFile(process.env.dataFile, (err, data) => {
                     if(err) {
                         console.log(err)
                     } else {
                         var obj = JSON.parse(data);
                         obj.conversations.push(details);
                         var json = JSON.stringify(obj);
-                        fs.writeFile('conversations.json', json, 'utf8', () => {})
+                        fs.writeFile(process.env.dataFile, json, 'utf8', () => {})
                     };
                 });
             } 
@@ -39,8 +39,9 @@ class TeamsBot extends TeamsActivityHandler {
 
         this.onEvent(async (context, next) => {
             if(context.activity.name === 'error') {
+                var text = context.activity.text;
                 MicrosoftAppCredentials.trustServiceUrl('https://smba.trafficmanager.net/uk/');
-                fs.readFile('conversations.json', async (err, data) => {
+                fs.readFile(process.env.dataFile, async (err, data) => {
                     var conversations = JSON.parse(data).conversations;
                     var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
                     var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
@@ -48,7 +49,7 @@ class TeamsBot extends TeamsActivityHandler {
                         await client.conversations.sendToConversation(conversation.activity.conversation.id, {
                             type: 'message',
                             from: {id: process.env.MicrosoftAppId},
-                            text: 'heres some text.'
+                            text: text
                         });
                     }); 
                 });
@@ -56,16 +57,6 @@ class TeamsBot extends TeamsActivityHandler {
             await next();
         }); 
 
-    }
-
-    async readUserJSON(callback) {
-        await fs.readFile('data.json', async (err, data) => {
-            if(err) {
-                console.log(err)
-            } else  {context
-                await callback(JSON.parse(data));
-            }
-        });
     }
 }
 
