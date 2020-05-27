@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 const { TeamsActivityHandler, TeamsInfo } = require('botbuilder');
+const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
 const fs = require('fs');
 
 class TeamsBot extends TeamsActivityHandler {
@@ -35,6 +36,25 @@ class TeamsBot extends TeamsActivityHandler {
             // By calling next() you ensure that the next BotHandler is run.
             await next();
         });
+
+        this.onEvent(async (context, next) => {
+            if(context.activity.name === 'error') {
+                MicrosoftAppCredentials.trustServiceUrl('https://smba.trafficmanager.net/uk/');
+                fs.readFile('conversations.json', async (err, data) => {
+                    var conversations = JSON.parse(data).conversations;
+                    var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
+                    var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
+                    conversations.forEach(async conversation => {      
+                        await client.conversations.sendToConversation(conversation.activity.conversation.id, {
+                            type: 'message',
+                            from: {id: process.env.MicrosoftAppId},
+                            text: 'heres some text.'
+                        });
+                    }); 
+                });
+            }
+            await next();
+        }); 
 
     }
 

@@ -6,7 +6,6 @@ const path = require("path");
 const restify = require('restify');
 const teams = require('botbuilder-teams');
 const fs = require('fs');
-const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
 
 // Import required bot services.
 // See https://aka.ms/bot-services to learn more about the different parts of a bot.
@@ -65,22 +64,6 @@ server.post('/api/messages', (req, res) => {
     });
 });
 
-server.get('/api/notify', async (req, res) => {
-    MicrosoftAppCredentials.trustServiceUrl('https://smba.trafficmanager.net/uk/');
-    fs.readFile('conversations.json', async (err, data) => {
-        var conversations = JSON.parse(data).conversations;
-        var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-        var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
-        conversations.forEach(async conversation => {
-            
-            var activityResponse = await client.conversations.sendToConversation(conversation.activity.conversation.id, {
-                type: 'message',
-                from: {id: process.env.MicrosoftAppId},
-                text: 'heres some text.'
-            });
-        }); 
-        res.send(conversations);
-    });
-});
+
 
 
