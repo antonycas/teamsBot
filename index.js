@@ -67,7 +67,7 @@ server.post('/api/messages', (req, res) => {
 
 server.get('/api/notify', async (req, res) => {
     MicrosoftAppCredentials.trustServiceUrl('https://smba.trafficmanager.net/uk/');
-    fs.readFile('data.json', async (err, data) => {
+    fs.readFile('conversations.json', async (err, data) => {
         var conversations = JSON.parse(data).conversations;
         var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
         var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
@@ -78,13 +78,6 @@ server.get('/api/notify', async (req, res) => {
                 from: {id: process.env.MicrosoftAppId},
                 text: 'heres some text.'
             });
-
-            // var ref = TurnContext.getConversationReference(conversation.activity);
-            // ref.user = conversation.user;
-            // await adapter.continueConversation(ref, async turnContext => {
-            //     MicrosoftAppCredentials.trustServiceUrl('https://smba.trafficmanager.net/uk/');
-            //     await turnContext.sendActivity('There was an error');
-            // });
         }); 
         res.send(conversations);
     });

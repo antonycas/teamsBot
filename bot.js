@@ -1,9 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-const { TeamsActivityHandler, MessageFactory, TeamsInfo, TurnContext } = require('botbuilder');
-const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
-const { TeamsContext } = require('botbuilder-teams');
+const { TeamsActivityHandler, TeamsInfo } = require('botbuilder');
 const fs = require('fs');
 
 class TeamsBot extends TeamsActivityHandler {
@@ -23,49 +21,21 @@ class TeamsBot extends TeamsActivityHandler {
                 };
                 
                 // write details to file
-                fs.readFile('data.json', (err, data) => {
+                fs.readFile('conversations.json', (err, data) => {
                     if(err) {
                         console.log(err)
                     } else {
                         var obj = JSON.parse(data);
                         obj.conversations.push(details);
                         var json = JSON.stringify(obj);
-                        fs.writeFile('data.json', json, 'utf8', () => {})
+                        fs.writeFile('conversations.json', json, 'utf8', () => {})
                     };
                 });
             } 
-            
-            await context.sendActivity('Hello. Send a message to the bot to begin listening for errors');
             // By calling next() you ensure that the next BotHandler is run.
             await next();
         });
 
-        
-        this.onMessage(async (context, next) => { 
-            await next();
-        });
-
-        this.onEvent(async (context, next) => {
-            this.readUserJSON(async data => {
-                await data.conversations.forEach(async conversation => {
-                    
-                    
-                    // const message = MessageFactory.text('There was an error');
-                    // var ref = TurnContext.getConversationReference(conversation.activity);
-                    // ref.user = conversation.user;
-                    
-                    // await context.adapter.createConversation(ref, async (t1) => {
-                    //     const ref2 = TurnContext.getConversationReference(t1.activity);
-                    //     await t1.adapter.continueConversation(ref2, async (t2) => {
-                    //         await t2.sendActivity(message)
-                    //     })
-                    // });
-                })
-            });
-            
-            await context.sendActivity(''); 
-            await next();
-        });
     }
 
     async readUserJSON(callback) {
