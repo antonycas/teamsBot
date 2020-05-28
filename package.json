@@ -16,6 +16,7 @@
         "url": "https://github.com"
     },
     "dependencies": {
+        "adaptivecards-templating": "^1.0.0-rc.0",
         "botbuilder": "~4.7.0",
         "botbuilder-teams": "^4.0.0-beta1",
         "botframework-connector": "^4.9.0",

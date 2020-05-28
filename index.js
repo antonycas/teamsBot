@@ -9,7 +9,7 @@ const fs = require('fs');
 
 // Import required bot services.
 // See https://aka.ms/bot-services to learn more about the different parts of a bot.
-const { BotFrameworkAdapter, TurnContext } = require('botbuilder');
+const { BotFrameworkAdapter } = require('botbuilder');
 
 // This bot's main dialog.
 const { TeamsBot } = require('./bot');
