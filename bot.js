@@ -38,34 +38,69 @@ class TeamsBot extends TeamsActivityHandler {
         });
 
         this.onMessage(async (context, next) => {
-            this.messageAllUsers(`${context.activity.from.name}: ${context.activity.text}`, context);
+            // crete activity to be sent to conversation
+            var activity = {
+                type: 'message',
+                from: {id: process.env.MicrosoftAppId},
+                text: `${context.activity.from.name}: ${context.activity.text}`
+            }
+
+            var fromId = context.activity.from.id
+
+            fs.readFile(process.env.dataFile, async (err, data) => {
+                if(err) {
+                    return console.log(err)
+                } else {
+                    var conversations = JSON.parse(data).conversations;
+                    var filteredConversations = conversations.filter(conversation => { return conversation.user.id !== fromId });
+                    this.sendToConversations(filteredConversations, activity);
+                }
+            })
+
             await next();
         });
 
 
         this.onEvent(async (context, next) => {
             if(context.activity.name === 'error') {
-                this.messageAllUsers(context.activity.text, context);
+                var activity = {
+                    type: 'message',
+                    from: {id: process.env.MicrosoftAppId},
+                    text: context.activity.text
+                }
+
+                fs.readFile(process.env.dataFile, async (err, data) => {
+                    if(err) {
+                        return console.log(err)
+                    } else {
+                        var conversations = JSON.parse(data).conversations;
+                        this.sendToConversations(conversations, activity);
+                    }
+                })
             }
             await next();
         }); 
 
     }
 
-    messageAllUsers(message, context) {
-        var text = message;
+    sendToAllConversations(activity) {
         MicrosoftAppCredentials.trustServiceUrl('https://smba.trafficmanager.net/uk/');
         fs.readFile(process.env.dataFile, async (err, data) => {
             var conversations = JSON.parse(data).conversations;
             var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
             var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
             conversations.forEach(async conversation => {      
-                await client.conversations.sendToConversation(conversation.activity.conversation.id, {
-                    type: 'message',
-                    from: {id: process.env.MicrosoftAppId},
-                    text: text
-                });
+                await client.conversations.sendToConversation(conversation.activity.conversation.id, activity);
             }); 
+        });
+    }
+
+    sendToConversations(conversations, activity) {
+        MicrosoftAppCredentials.trustServiceUrl('https://smba.trafficmanager.net/uk/');
+        var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
+        var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
+        conversations.forEach(async conversation => {      
+            await client.conversations.sendToConversation(conversation.activity.conversation.id, activity);
         });
     }
 }
