@@ -37,26 +37,36 @@ class TeamsBot extends TeamsActivityHandler {
             await next();
         });
 
+        this.onMessage(async (context, next) => {
+            this.messageAllUsers(`${context.activity.from.name}: ${context.activity.text}`, context);
+            await next();
+        });
+
+
         this.onEvent(async (context, next) => {
             if(context.activity.name === 'error') {
-                var text = context.activity.text;
-                MicrosoftAppCredentials.trustServiceUrl('https://smba.trafficmanager.net/uk/');
-                fs.readFile(process.env.dataFile, async (err, data) => {
-                    var conversations = JSON.parse(data).conversations;
-                    var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-                    var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
-                    conversations.forEach(async conversation => {      
-                        await client.conversations.sendToConversation(conversation.activity.conversation.id, {
-                            type: 'message',
-                            from: {id: process.env.MicrosoftAppId},
-                            text: text
-                        });
-                    }); 
-                });
+                this.messageAllUsers(context.activity.text, context);
             }
             await next();
         }); 
 
+    }
+
+    messageAllUsers(message, context) {
+        var text = message;
+        MicrosoftAppCredentials.trustServiceUrl('https://smba.trafficmanager.net/uk/');
+        fs.readFile(process.env.dataFile, async (err, data) => {
+            var conversations = JSON.parse(data).conversations;
+            var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
+            var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
+            conversations.forEach(async conversation => {      
+                await client.conversations.sendToConversation(conversation.activity.conversation.id, {
+                    type: 'message',
+                    from: {id: process.env.MicrosoftAppId},
+                    text: text
+                });
+            }); 
+        });
     }
 }
 
