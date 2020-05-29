@@ -16,18 +16,17 @@ class TeamsBot extends TeamsActivityHandler {
                 var members = await TeamsInfo.getMembers(context);
                 // select any members who are not bots
                 var users = members.filter(member => { return member.name.toLowerCase() !== "bot" });
-                var details = {
-                    user: users[0],
-                    activity: context.activity
-                };
-                
+                    
+                var conversation = context.activity.conversation;
+                conversation.user = users[0]
+
                 // write details to file
                 fs.readFile(process.env.dataFile, (err, data) => {
                     if(err) {
                         console.log(err)
                     } else {
                         var obj = JSON.parse(data);
-                        obj.conversations.push(details);
+                        obj.conversations.push(conversation);
                         var json = JSON.stringify(obj);
                         fs.writeFile(process.env.dataFile, json, 'utf8', () => {})
                     };
@@ -145,7 +144,7 @@ class TeamsBot extends TeamsActivityHandler {
         var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
         var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
         conversations.forEach(async conversation => {      
-            await client.conversations.sendToConversation(conversation.activity.conversation.id, activity);
+            await client.conversations.sendToConversation(conversation.id, activity);
         });
     }
 }
