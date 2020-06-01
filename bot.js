@@ -16,20 +16,22 @@ class TeamsBot extends TeamsActivityHandler {
                 var members = await TeamsInfo.getMembers(context);
                 // select any members who are not bots
                 var users = members.filter(member => { return member.name.toLowerCase() !== "bot" });
+                var user = users[0]
                     
                 var conversation = context.activity.conversation;
-                conversation.user = users[0]
+                conversation.user = user;
 
                 // write details to file
                 fs.readFile(process.env.dataFile, (err, data) => {
+                    let JSONData = JSON.parse(data);
+                    console.log(JSONData);
                     if(err) {
                         console.log(err)
-                    } else {
-                        var obj = JSON.parse(data);
-                        obj.conversations.push(conversation);
-                        var json = JSON.stringify(obj);
-                        fs.writeFile(process.env.dataFile, json, 'utf8', () => {})
-                    };
+                    } else if(!JSONData.conversations.some(conversation => conversation.user.id === user.id )) {
+                            JSONData.conversations.push(conversation);
+                            let toWrite = JSON.stringify(JSONData);
+                            fs.writeFile(process.env.dataFile, toWrite, 'utf8', () => {})
+                        }
                 });
             } 
             // By calling next() you ensure that the next BotHandler is run.
