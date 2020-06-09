@@ -10,60 +10,31 @@ class TeamsBot extends TeamsActivityHandler {
     constructor() {
         super();
 
-        this.onMembersAdded(async (context, next) => {
-            // only save the members details if the member is added through teams
-            if(context.activity.channelId === 'msteams') {
-                var members = await TeamsInfo.getMembers(context);
-                // select any members who are not bots
-                var users = members.filter(member => { return member.name.toLowerCase() !== "bot" });
-                var user = users[0]
-                    
-                var conversation = context.activity.conversation;
-                conversation.user = user;
-
-                // write details to file
+        this.onConversationUpdate(async (context, next) => {
+            console.log('app installed for a user');
+            if(context.activity.membersAdded.length > 1) {
+                let { membersAdded } = context.activity;
                 fs.readFile(process.env.dataFile, (err, data) => {
                     let JSONData = JSON.parse(data);
-                    console.log(JSONData);
                     if(err) {
                         console.log(err)
-                    } else if(!JSONData.conversations.some(conversation => conversation.user.id === user.id )) {
-                            JSONData.conversations.push(conversation);
-                            let toWrite = JSON.stringify(JSONData);
-                            fs.writeFile(process.env.dataFile, toWrite, 'utf8', () => {})
-                        }
+                    } else {
+                        membersAdded.forEach(addedMember => {
+                            if(!JSONData.users.some(user => user.id === addedMember.id )) {
+                                JSONData.users.push(addedMember);     
+                            }    
+                        })
+                        let toWrite = JSON.stringify(JSONData);
+                        fs.writeFile(process.env.dataFile, toWrite, 'utf8', () => {})
+                    }
                 });
-            } 
-            // By calling next() you ensure that the next BotHandler is run.
-            await next();
-        });
-
-        this.onMessage(async (context, next) => {
-            // crete activity to be sent to conversation
-            var activity = {
-                type: 'message',
-                from: {id: process.env.MicrosoftAppId},
-                text: `${context.activity.from.name}: ${context.activity.text}`
+                await next();
             }
-
-            var fromId = context.activity.from.id
-
-            fs.readFile(process.env.dataFile, async (err, data) => {
-                if(err) {
-                    return console.log(err)
-                } else {
-                    var conversations = JSON.parse(data).conversations;
-                    var filteredConversations = conversations.filter(conversation => { return conversation.user.id !== fromId });
-                    this.sendToConversations(filteredConversations, activity);
-                }
-            })
-
-            await next();
-        });
-
+        })
 
         this.onEvent(async (context, next) => {
             if(context.activity.name === 'error') {
+                
                 var templatePayload = {
                     "type": "AdaptiveCard",
                     "version": "1.0",
@@ -108,7 +79,7 @@ class TeamsBot extends TeamsActivityHandler {
                         }
                     ]
                 }
-
+                
                 var template = new Template(templatePayload);
                 let { data } = context.activity;
                 var expandedCard = template.expand({
@@ -123,31 +94,48 @@ class TeamsBot extends TeamsActivityHandler {
                         date: data.date
                     }
                 });
- 
+                
                 const card = CardFactory.adaptiveCard(expandedCard);
                 var activity =  MessageFactory.attachment(card);
+                
+                MicrosoftAppCredentials.trustServiceUrl('https://smba.trafficmanager.net/uk/');
+                var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
+                var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
 
-                fs.readFile(process.env.dataFile, async (err, data) => {
+                var conversationParams = {
+                    members: context.activity.usersToNotify,
+                    channelData: {
+                        teamsChannelId: context.activity.teamsChannelId
+                    },
+                    activity: activity
+                }
+                
+                await client.conversations.createConversation(conversationParams);
+
+                let usersToNotify = context.activity.usersToNotify;
+                fs.readFile(process.env.dataFile, (err, data) => {
+                    let JSONData = JSON.parse(data);
                     if(err) {
-                        return console.log(err)
+                        console.log(err)
                     } else {
-                        var conversations = JSON.parse(data).conversations;
-                        this.sendToConversations(conversations, activity);
+                        usersToNotify.forEach(async user => {
+                            let mention = {
+                                mentioned: JSONData.users.filter(u =>  u.aadObjectId === user.id )[0],
+                                text: `<at>${ user.displayName }</at>`,
+                                type: 'mention'
+                            };
+                            activity = MessageFactory.text(`<at>${user.displayName}</at>`);
+                            activity.entities = [mention];
+                            conversationParams.activity = activity
+
+                            await client.conversations.createConversation(conversationParams);
+                        });  
                     }
-                })
+                });
             }
             await next();
         }); 
-
-    }
-
-    sendToConversations(conversations, activity) {
-        MicrosoftAppCredentials.trustServiceUrl('https://smba.trafficmanager.net/uk/');
-        var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-        var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
-        conversations.forEach(async conversation => {      
-            await client.conversations.sendToConversation(conversation.id, activity);
-        });
+        
     }
 }
 
