@@ -11,7 +11,6 @@ class TeamsBot extends TeamsActivityHandler {
         super();
 
         this.onConversationUpdate(async (context, next) => {
-            console.log('app installed for a user');
             if(context.activity.membersAdded.length > 1) {
                 let { membersAdded } = context.activity;
                 fs.readFile(process.env.dataFile, (err, data) => {
@@ -103,14 +102,13 @@ class TeamsBot extends TeamsActivityHandler {
                 var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
 
                 var conversationParams = {
-                    members: context.activity.usersToNotify,
                     channelData: {
                         teamsChannelId: context.activity.teamsChannelId
                     },
                     activity: activity
                 }
-                
-                await client.conversations.createConversation(conversationParams);
+
+                const initialConversation = await client.conversations.createConversation(conversationParams);
 
                 let usersToNotify = context.activity.usersToNotify;
                 fs.readFile(process.env.dataFile, (err, data) => {
@@ -124,11 +122,10 @@ class TeamsBot extends TeamsActivityHandler {
                                 text: `<at>${ user.displayName }</at>`,
                                 type: 'mention'
                             };
-                            activity = MessageFactory.text(`<at>${user.displayName}</at>`);
+                            
+                            activity = MessageFactory.text(`<at>${ user.displayName }</at>`);
                             activity.entities = [mention];
-                            conversationParams.activity = activity
-
-                            await client.conversations.createConversation(conversationParams);
+                            await client.conversations.sendToConversation(initialConversation.id, activity);
                         });  
                     }
                 });
