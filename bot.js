@@ -33,7 +33,6 @@ class TeamsBot extends TeamsActivityHandler {
 
         this.onEvent(async (context, next) => {
             if(context.activity.name === 'error') {
-                
                 var templatePayload = {
                     "type": "AdaptiveCard",
                     "version": "1.0",
@@ -125,6 +124,7 @@ class TeamsBot extends TeamsActivityHandler {
                             
                             activity = MessageFactory.text(`<at>${ user.displayName }</at>`);
                             activity.entities = [mention];
+                            console.log(activity, initialConversation, mention, mention.mentioned)
                             await client.conversations.sendToConversation(initialConversation.id, activity);
                         });  
                     }
