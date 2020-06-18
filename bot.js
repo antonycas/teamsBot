@@ -5,35 +5,36 @@ const { TeamsActivityHandler, CardFactory, MessageFactory } = require('botbuilde
 const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
 const { Template } = require('adaptivecards-templating');
 const fs = require('fs');
+const { BlobStorage } = require('botbuilder-azure')
+
 
 class TeamsBot extends TeamsActivityHandler {
     constructor() {
         super();
-
+        this.storage = new BlobStorage({
+            containerName: process.env.BLOB_NAME,
+            storageAccountOrConnectionString: process.env.BLOB_STRING
+        });
+        
         this.onConversationUpdate(async (context, next) => {
             if(context.activity.membersAdded.length > 1) {
                 let { membersAdded } = context.activity;
-                fs.readFile(process.env.dataFile, (err, data) => {
-                    let JSONData = JSON.parse(data);
-                    if(err) {
-                        console.log(err)
-                    } else {
-                        membersAdded.forEach(addedMember => {
-                            if(!JSONData.users.some(user => user.id === addedMember.id )) {
-                                JSONData.users.push(addedMember);     
-                            }    
-                        })
-                        let toWrite = JSON.stringify(JSONData);
-                        fs.writeFile(process.env.dataFile, toWrite, 'utf8', () => {})
-                    }
-                });
+                let storeItems = await this.storage.read(["users"]);
+                let users = storeItems["users"]
+                if(typeof (users) != 'undefined') {
+                    console.log('got here')
+                    membersAdded.forEach(adddedMember => {
+                        if(!storeItems.users.some(user => user.id === adddedMember.id)) {
+                            storeItems.users.push(adddedMember)
+                        }
+                    });
+                    this.saveData(storeItems);
+                } else {
+                    storeItems["users"] = membersAdded
+                    this.saveData(storeItems);
+                } 
                 await next();
             }
-        })
-
-        this.onMessage(async (context, next)=> {
-            context.sendActivity(MessageFactory.text(`${JSON.stringify(context.activity.from,null,2)}`))
-            await next();
         })
 
         this.onEvent(async (context, next) => {
@@ -114,34 +115,27 @@ class TeamsBot extends TeamsActivityHandler {
 
                 const initialConversation = await client.conversations.createConversation(conversationParams);
 
-                let usersToNotify = context.activity.usersToNotify;
-                let incidentId = context.activity.data.incidentId;
-                fs.readFile(process.env.dataFile, (err, data) => {
-                    let JSONData = JSON.parse(data);
-                    if(err) {
-                        console.log(err)
-                    } else {
-                        usersToNotify.forEach(async user => {
-                            let mention = {
-                                mentioned: JSONData.users.filter(u =>  u.aadObjectId === user.id )[0],
-                                text: `<at>${ user.displayName }</at>`,
-                                type: 'mention'
-                            };
-                            
-                            activity = MessageFactory.text(`<at>${ user.displayName }</at>`);
-                            activity.entities = [mention];
-                            await client.conversations.replyToActivity(initialConversation.id, initialConversation.activityId, activity);
-                        });
-                         
-                        
-                        JSONData.incidents.push({
-                            incidentId: incidentId,
-                            conversationId: initialConversation.id
-                        })
+                let storeItems = await this.storage.read(["users", "incidents"])
+                let { users, incidents } = storeItems;
+                let usersToNotify = users.filter(u => context.activity.usersToNotify.some(user => u.aadObjectId == user.id))
 
-                        this.saveToDataFile(JSONData);
+                if (typeof (incidents) === 'undefined') { storeItems.incidents = [] }
+                storeItems.incidents.push({
+                    id: context.activity.data.incidentId,
+                    conversation: initialConversation 
+                }) 
+                this.saveData(storeItems)
+
+                usersToNotify.forEach(async user => {
+                    let mention = {
+                        mentioned: user,
+                        text: `<at>${user.displayName}</at>`,
+                        type: 'mention'
                     }
-                });
+                    activity = MessageFactory.text(`<at>${user.displayName}</at>`);
+                    activity.entities = [mention]
+                    await client.conversations.replyToActivity(initialConversation.id, initialConversation.activityId, activity)
+                })
             } else if(context.activity.name === 'resolved') {
                 var templatePayload = {
                     "type": "AdaptiveCard",
@@ -210,20 +204,23 @@ class TeamsBot extends TeamsActivityHandler {
                 var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
                 var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
 
-                let incidentId = context.activity.data.incidentId;
-                fs.readFile(process.env.dataFile, async (err, data) => {
-                    if(err) {
-                        console.log(err);
-                    } else {
-                        let JSONData = JSON.parse(data);
-                        let incident = JSONData.incidents.filter(i => i.incidentId === incidentId )[0]
-                        await client.conversations.sendToConversation(incident.conversationId, activity)
-                    }
-                })
+                let storeItems = await this.storage.read(["incidents"]);
+                let { incidents } = storeItems;
+                let initialIncident = incidents.filter(i => i.id === context.activity.data.incidentId)[0]
+                let { conversation } = initialIncident
+                await client.conversations.replyToActivity(conversation.id, conversation.activityId, activity) 
             }
             await next();
         }); 
         
+    }
+
+    async saveData(data) {
+        try {
+            await this.storage.write(data)
+        } catch(err) {
+            console.log(err)
+        }
     }
 
     saveToDataFile(data) {

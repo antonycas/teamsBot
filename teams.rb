@@ -62,7 +62,6 @@ elsif data['notificationType'] == 'error'
     userEmails: ['antcas@antcasdev.onmicrosoft.com', 'romancollyer@antcasdev.onmicrosoft.com', 'testuser@antcasdev.onmicrosoft.com']
   }.to_json
   
-  
   command = "curl -H 'Authorization: Bearer #{direct_channel_secret}' -H 'Content-Type: application/json' -d '#{activity}' 'https://directline.botframework.com/v3/directline/conversations/#{conversation_id}/activities'"
   x = `#{command}`
 elsif data['notificationType'] == 'resolved'
