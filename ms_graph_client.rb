@@ -24,21 +24,48 @@ class MSGraphClient
 		JSON.parse(`#{command}`)['value']
 	end
 
-	def get_channels(group_id)
+	def list_channels(group_id)
 		command = "curl -H 'Authorization:#{access_token}' 'https://graph.microsoft.com/v1.0/teams/#{group_id}/channels'"
 		JSON.parse(`#{command}`)['value']
 	end
 
-	def create_team(members=[], display_name)
+	def update_channel(group_id, channel_id, channel_data)
+		`curl -H 'Authorization: #{access_token}' -H 'Content-Type: application/json' -X PATCH 'https://graph.microsoft.com/v1.0/teams/#{group_id}/channels/#{channel_id}' -d '#{channel_data}'`
+	end
+
+	def delete_channel(team_id, channel_id)
+		`curl -H 'Authorization: #{access_token}' -X DELETE 'https://graph.microsoft.com/v1.0/teams/#{team_id}/channels/#{channel_id}'`
+	end
+
+	def create_group(owner_id, display_name, members=[])
 		request_body = {
-			displayName: display_name,
-			mailEnabled: true,
-			mailNickname: 'naemon errors',
-			securityEnabled: true,
-			members: members
-		}.to_json
-		command = "curl -H 'Authorization:#{access_token}' -H 'Content-Type: application/json' -d #{request_body} 'https://graph.microsoft.com/v1.0/groups'"
+			"displayName": display_name,
+			"mailEnabled": false,
+			"mailNickname": 'naemon_errors',
+			"securityEnabled": true,
+			"owners@odata.bind": ["https://graph.microsoft.com/v1.0/users/#{owner_id}"],
+			"members@odata.bind": ["https://graph.microsoft.com/v1.0/users/#{owner_id}"]
+		}
+		command = "curl -H 'Authorization:#{access_token}' -H 'Content-Type: application/json' -d #{request_body.to_json.to_json} 'https://graph.microsoft.com/v1.0/groups'"
 		JSON.parse(`#{command}`)
+	end
+
+	def create_team(group_id)
+		request_body = {  
+			memberSettings: {
+				allowCreateUpdateChannels: true
+			},
+			messagingSettings: {
+				allowUserEditMessages: true,
+				allowUserDeleteMessages: true
+			},
+			funSettings: {
+				allowGiphy: true,
+				giphyContentRating: "strict"
+			}
+		}.to_json.to_json 
+		command = "curl -H 'Authorization: #{access_token}' -H 'Content-Type: application/json' -d #{request_body} -X PUT 'https://graph.microsoft.com/v1.0/groups/#{group_id}/team'"
+		JSON.parse `#{command}`
 	end
 
 	def create_teams_channel(team_id, display_name, description)
