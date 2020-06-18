@@ -4,18 +4,21 @@
 const { TeamsActivityHandler, CardFactory, MessageFactory } = require('botbuilder');
 const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
 const { Template } = require('adaptivecards-templating');
-const fs = require('fs');
 const { BlobStorage } = require('botbuilder-azure')
 
 
 class TeamsBot extends TeamsActivityHandler {
     constructor() {
         super();
+
+        this.serviceUrl = 'https://smba.trafficmanager.net/uk/';
+        this.credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
+        this.client = new ConnectorClient(this.credentials, {baseUri: this.serviceUrl });
         this.storage = new BlobStorage({
             containerName: process.env.BLOB_NAME,
             storageAccountOrConnectionString: process.env.BLOB_STRING
         });
-        
+
         this.onConversationUpdate(async (context, next) => {
             if(context.activity.membersAdded.length > 1) {
                 let { membersAdded } = context.activity;
@@ -101,19 +104,15 @@ class TeamsBot extends TeamsActivityHandler {
                 
                 const card = CardFactory.adaptiveCard(expandedCard);
                 var activity =  MessageFactory.attachment(card);
-                
-                MicrosoftAppCredentials.trustServiceUrl('https://smba.trafficmanager.net/uk/');
-                var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-                var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
-
                 var conversationParams = {
                     channelData: {
                         teamsChannelId: context.activity.teamsChannelId
                     },
                     activity: activity
                 }
-
-                const initialConversation = await client.conversations.createConversation(conversationParams);
+                
+                MicrosoftAppCredentials.trustServiceUrl(this.serviceUrl);
+                const initialConversation = await this.client.conversations.createConversation(conversationParams);
 
                 let storeItems = await this.storage.read(["users", "incidents"])
                 let { users, incidents } = storeItems;
@@ -134,7 +133,7 @@ class TeamsBot extends TeamsActivityHandler {
                     }
                     activity = MessageFactory.text(`<at>${user.displayName}</at>`);
                     activity.entities = [mention]
-                    await client.conversations.replyToActivity(initialConversation.id, initialConversation.activityId, activity)
+                    await this.client.conversations.replyToActivity(initialConversation.id, initialConversation.activityId, activity)
                 })
             } else if(context.activity.name === 'resolved') {
                 var templatePayload = {
@@ -199,16 +198,13 @@ class TeamsBot extends TeamsActivityHandler {
                 
                 const card = CardFactory.adaptiveCard(expandedCard);
                 var activity =  MessageFactory.attachment(card);
-                
-                MicrosoftAppCredentials.trustServiceUrl('https://smba.trafficmanager.net/uk/');
-                var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-                var client = new ConnectorClient(credentials, {baseUri: 'https://smba.trafficmanager.net/uk/'});
 
                 let storeItems = await this.storage.read(["incidents"]);
                 let { incidents } = storeItems;
                 let initialIncident = incidents.filter(i => i.id === context.activity.data.incidentId)[0]
                 let { conversation } = initialIncident
-                await client.conversations.replyToActivity(conversation.id, conversation.activityId, activity) 
+                MicrosoftAppCredentials.trustServiceUrl(this.serviceUrl);
+                await this.client.conversations.replyToActivity(conversation.id, conversation.activityId, activity) 
             }
             await next();
         }); 
@@ -221,12 +217,6 @@ class TeamsBot extends TeamsActivityHandler {
         } catch(err) {
             console.log(err)
         }
-    }
-
-    saveToDataFile(data) {
-        fs.writeFile(process.env.dataFile, JSON.stringify(data), err => {
-            if(err) { console.log(err) } 
-        })
     }
 }
 
