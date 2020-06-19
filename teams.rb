@@ -21,13 +21,6 @@ ms_graph_client = MSGraphClient.new(client_id, client_secret, aad_name)
 if data['status'] == nil 
   abort('No notification type provided.')
 elsif data['status'] == 'error'
-  # list all groups 
-  groups = ms_graph_client.get_groups
-  # select a group based on display name
-  group = groups.find { |g| g['displayName'] == 'antcasdev'}
-  # return the selected members
-  members = ms_graph_client.get_members(group['id'])
-  
   users_to_notify = []
   user_emails = data['usersToNotify']
   user_emails.each {|e| users_to_notify << ms_graph_client.get_user(e) }
