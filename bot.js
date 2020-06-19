@@ -19,6 +19,12 @@ class TeamsBot extends TeamsActivityHandler {
             storageAccountOrConnectionString: process.env.BLOB_STRING
         });
 
+        this.onMessage(async (context, next) => {
+            let storeItems = await this.storage.read(["incidents"])
+            await context.sendActivity(MessageFactory.text(JSON.stringify(storeItems,null,2)))
+            await next();
+        })
+
         this.onConversationUpdate(async (context, next) => {
             if(context.activity.membersAdded.length > 1) {
                 let { membersAdded } = context.activity;
@@ -42,102 +48,107 @@ class TeamsBot extends TeamsActivityHandler {
 
         this.onEvent(async (context, next) => {
             if(context.activity.name === 'error') {
-                var templatePayload = {
-                    "type": "AdaptiveCard",
-                    "version": "1.0",
-                    "body": [
-                        {
-                            "type": "TextBlock",
-                            "text": "${incidentId}",
-                            "color": "attention",
-                            "size": "large",
-                            "weight": "bolder",
-                            "spacing": "none"
-                        },
-                        {
-                            "type": "TextBlock",
-                            "text": "${date}",
-                            "isSubtle": true,
-                            "spacing": "none"
-                        },
-                        {
-                            "type": "TextBlock",
-                            "text": "${hostName}"
-                        },
-                        {
-                            "type": "TextBlock",
-                            "text": "${hostAddress}"
-                        },
-                        {
-                            "type": "TextBlock",
-                            "text": "${hostData}"
-                        },
-                        {
-                            "type": "TextBlock",
-                            "text": "${serviceName}"
-                        },
-                        {
-                            "type": "TextBlock",
-                            "text": "${serviceData}"
-                        },
-                        {
-                            "type": "TextBlock",
-                            "text": "${serviceStatus}"
-                        }
-                    ]
-                }
                 
-                var template = new Template(templatePayload);
-                let { data } = context.activity;
-                var expandedCard = template.expand({
-                    $root: {
-                        incidentId: `ERROR: ${data.incidentId}`,
-                        hostName: `Host Name: ${data.hostName}`,
-                        hostAddress: `Host Address: ${data.hostAddress}`,
-                        hostData: `Host Data: ${data.hostData}`,
-                        serviceName: `Service Name: ${data.serviceName}`,
-                        serviceData: `Service Data: ${data.serviceData}`,
-                        serviceStatus: `Service Status: ${data.serviceStatus}`,
-                        date: data.date
-                    }
-                });
-                
-                const card = CardFactory.adaptiveCard(expandedCard);
-                var activity =  MessageFactory.attachment(card);
-                var conversationParams = {
-                    channelData: {
-                        teamsChannelId: context.activity.teamsChannelId
-                    },
-                    activity: activity
-                }
-                
-                MicrosoftAppCredentials.trustServiceUrl(this.serviceUrl);
-                const initialConversation = await this.client.conversations.createConversation(conversationParams);
-
                 let storeItems = await this.storage.read(["users", "incidents"])
                 let { users, incidents } = storeItems;
                 let usersToNotify = users.filter(u => context.activity.usersToNotify.some(user => u.aadObjectId == user.id))
-
+                
                 if (typeof (incidents) === 'undefined') { storeItems.incidents = [] }
-                storeItems.incidents.push({
-                    id: context.activity.data.incidentId,
-                    conversation: initialConversation 
-                }) 
-                this.saveData(storeItems)
+                if (incidents.some(i => { return i.id === context.activity.data.incidentId })) {
+                    console.log('Error already exists')
+                } else {
+                    var templatePayload = {
+                        "type": "AdaptiveCard",
+                        "version": "1.0",
+                        "body": [
+                            {
+                                "type": "TextBlock",
+                                "text": "${incidentId}",
+                                "color": "attention",
+                                "size": "large",
+                                "weight": "bolder",
+                                "spacing": "none"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "${date}",
+                                "isSubtle": true,
+                                "spacing": "none"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "${hostName}"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "${hostAddress}"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "${hostData}"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "${serviceName}"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "${serviceData}"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "${serviceStatus}"
+                            }
+                        ]
+                    }
+                    
+                    var template = new Template(templatePayload);
+                    let { data } = context.activity;
+                    var expandedCard = template.expand({
+                        $root: {
+                            incidentId: `ERROR: ${data.incidentId}`,
+                            hostName: `Host Name: ${data.hostName}`,
+                            hostAddress: `Host Address: ${data.hostAddress}`,
+                            hostData: `Host Data: ${data.hostData}`,
+                            serviceName: `Service Name: ${data.serviceName}`,
+                            serviceData: `Service Data: ${data.serviceData}`,
+                            serviceStatus: `Service Status: ${data.serviceStatus}`,
+                            date: data.date
+                        }
+                    });
+                    
+                    const card = CardFactory.adaptiveCard(expandedCard);
+                    var activity =  MessageFactory.attachment(card);
+                    var conversationParams = {
+                        channelData: {
+                            teamsChannelId: context.activity.teamsChannelId
+                        },
+                        activity: activity
+                    }
+                    
+                    MicrosoftAppCredentials.trustServiceUrl(this.serviceUrl);
+                    const initialConversation = await this.client.conversations.createConversation(conversationParams);
 
-                usersToNotify.forEach(async user => {
-                    let mention = {
-                        mentioned: user,
-                        text: `<at>${user.displayName}</at>`,
-                        type: 'mention'
-                    }
-                    activity = {
-                        type: 'message',
-                        text: `<at>${ user.displayName }</at>`,
-                        entities: [mention]
-                    }
-                    await this.client.conversations.replyToActivity(initialConversation.id, initialConversation.activityId, activity)
-                })
+                    storeItems.incidents.push({
+                        id: context.activity.data.incidentId,
+                        conversation: initialConversation 
+                    })
+                    this.saveData(storeItems)
+
+                    usersToNotify.forEach(async user => {
+                        let mention = {
+                            mentioned: user,
+                            text: `<at>${user.displayName}</at>`,
+                            type: 'mention'
+                        }
+                        activity = {
+                            type: 'message',
+                            text: `<at>${ user.displayName }</at>`,
+                            entities: [mention]
+                        }
+                        await this.client.conversations.replyToActivity(initialConversation.id, initialConversation.activityId, activity)
+                    })
+                }
             } else if(context.activity.name === 'resolved') {
                 var templatePayload = {
                     "type": "AdaptiveCard",

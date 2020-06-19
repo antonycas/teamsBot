@@ -82,7 +82,6 @@ class MSGraphClient
 	end
 
 	def get_installed_apps(user_id)
-		puts "getting app list"
 		href = "https://graph.microsoft.com/beta/users/#{user_id}/teamwork/installedApps?$expand=teamsAppDefinition"
 		command = "curl -H 'Authorization: #{access_token}' '#{href}'"
 		JSON.parse(`#{command}`)['value']
