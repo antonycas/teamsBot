@@ -14,7 +14,6 @@ end
 def todays_channel(ms_graph_client, team_id)
   date_string = Time.new.strftime("%d_%m_%y") 
   channels = ms_graph_client.list_channels(team_id)
-  pp channels
   channel = channels.find { |c| c['displayName'].split(' ').first == date_string }
   (channel.nil?) ? ms_graph_client.create_teams_channel(team_id, date_string, date_string) : channel 
 end
