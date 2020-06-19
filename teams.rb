@@ -18,9 +18,9 @@ direct_channel_secret = ARGV[0]
 data = JSON.parse(ARGV[1])
 ms_graph_client = MSGraphClient.new(client_id, client_secret, aad_name)
 
-if data['notificationType'] == nil 
+if data['status'] == nil 
   abort('No notification type provided.')
-elsif data['notificationType'] == 'error'
+elsif data['status'] == 'error'
   # list all groups 
   groups = ms_graph_client.get_groups
   # select a group based on display name
@@ -29,7 +29,7 @@ elsif data['notificationType'] == 'error'
   members = ms_graph_client.get_members(group['id'])
   
   users_to_notify = []
-  user_emails = ['antcas@antcasdev.onmicrosoft.com', 'testuser@antcasdev.onmicrosoft.com']
+  user_emails = data['usersToNotify']
   user_emails.each {|e| users_to_notify << ms_graph_client.get_user(e) }
   # users_to_notify = members.select {|m| user_emails.include?(m['mail']) }
 
@@ -66,7 +66,7 @@ elsif data['notificationType'] == 'error'
   
   command = "curl -H 'Authorization: Bearer #{direct_channel_secret}' -H 'Content-Type: application/json' -d '#{activity}' 'https://directline.botframework.com/v3/directline/conversations/#{conversation_id}/activities'"
   x = `#{command}`
-elsif data['notificationType'] == 'resolved'
+elsif data['status'] == 'resolved'
   # # start a conversation with the bot
   command = "curl -X POST -H 'Authorization: Bearer #{direct_channel_secret}' -H 'Content-Type: application/json' -d '' 'https://directline.botframework.com/v3/directline/conversations'"
   conversation = JSON.parse(`#{command}`)

@@ -131,8 +131,11 @@ class TeamsBot extends TeamsActivityHandler {
                         text: `<at>${user.displayName}</at>`,
                         type: 'mention'
                     }
-                    activity = MessageFactory.text(`<at>${user.displayName}</at>`);
-                    activity.entities = [mention]
+                    activity = {
+                        type: 'message',
+                        text: `<at>${ user.displayName }</at>`,
+                        entities: [mention]
+                    }
                     await this.client.conversations.replyToActivity(initialConversation.id, initialConversation.activityId, activity)
                 })
             } else if(context.activity.name === 'resolved') {
