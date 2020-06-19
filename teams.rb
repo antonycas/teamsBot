@@ -28,9 +28,11 @@ elsif data['notificationType'] == 'error'
   # return the selected members
   members = ms_graph_client.get_members(group['id'])
   
+  users_to_notify = []
   user_emails = ['antcas@antcasdev.onmicrosoft.com', 'testuser@antcasdev.onmicrosoft.com']
-  users_to_notify = members.select {|m| user_emails.include?(m['mail']) }
-  
+  user_emails.each {|e| users_to_notify << ms_graph_client.get_user(e) }
+  # users_to_notify = members.select {|m| user_emails.include?(m['mail']) }
+
   teams_app_id = '500f16aa-318c-4bdc-a8ae-05855567d31a'
   users_to_notify.each {|u|
     installed_apps = ms_graph_client.get_installed_apps(u['id'])

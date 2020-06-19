@@ -24,6 +24,10 @@ class MSGraphClient
 		JSON.parse(`#{command}`)['value']
 	end
 
+	def get_user(user_pricipal_name)
+		JSON.parse(`curl -H 'Authorization: #{access_token}' 'https://graph.microsoft.com/v1.0/users/#{user_pricipal_name}'`)
+	end
+
 	def list_channels(group_id)
 		command = "curl -H 'Authorization:#{access_token}' 'https://graph.microsoft.com/v1.0/teams/#{group_id}/channels'"
 		JSON.parse(`#{command}`)['value']
