@@ -33,10 +33,10 @@ elsif data['status'] == 'error'
   user_emails.each {|e| users_to_notify << ms_graph_client.get_user(e) }
 
   teams_app_id = '500f16aa-318c-4bdc-a8ae-05855567d31a'
-  users_to_notify.each {|u|
+  users_to_notify.each do |u|
     installed_apps = ms_graph_client.get_installed_apps(u['id'])
     new_app_installation = ms_graph_client.install_teams_app(u['id'], teams_app_id) if installed_apps.none? {|a| a['teamsAppDefinition']['teamsAppId'] == teams_app_id }
-  }
+  end
   
   team_id = '9b41ef88-1ea6-4ffa-915d-81e27c0e3ae1'
   channel = todays_channel(ms_graph_client,team_id)
