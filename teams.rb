@@ -25,13 +25,13 @@ direct_channel_secret = ARGV[0]
 data = JSON.parse(ARGV[1])
 ms_graph_client = MSGraphClient.new(client_id, client_secret, aad_name)
 
+users_to_notify = []
+user_emails = data['usersToNotify']
+user_emails.each {|e| users_to_notify << ms_graph_client.get_user(e) }
+
 if data['status'] == nil
   abort('No status provided.')
 elsif data['status'] == 'error'
-  users_to_notify = []
-  user_emails = data['usersToNotify']
-  user_emails.each {|e| users_to_notify << ms_graph_client.get_user(e) }
-
   teams_app_id = '500f16aa-318c-4bdc-a8ae-05855567d31a'
   users_to_notify.each do |u|
     installed_apps = ms_graph_client.get_installed_apps(u['id'])
@@ -74,7 +74,8 @@ elsif data['status'] == 'resolved'
     from: {
       id: 'errorBot'
     },
-    data: data
+    data: data,
+    usersToNotify: users_to_notify
   }.to_json
   
   

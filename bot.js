@@ -19,12 +19,6 @@ class TeamsBot extends TeamsActivityHandler {
             storageAccountOrConnectionString: process.env.BLOB_STRING
         });
 
-        this.onMessage(async (context, next) => {
-            let storeItems = await this.storage.read(["incidents"])
-            await context.sendActivity(MessageFactory.text(JSON.stringify(storeItems,null,2)))
-            await next();
-        })
-
         this.onConversationUpdate(async (context, next) => {
             if(context.activity.membersAdded.length > 1) {
                 let { membersAdded } = context.activity;
@@ -134,20 +128,7 @@ class TeamsBot extends TeamsActivityHandler {
                         conversation: initialConversation 
                     })
                     this.saveData(storeItems)
-
-                    usersToNotify.forEach(async user => {
-                        let mention = {
-                            mentioned: user,
-                            text: `<at>${user.displayName}</at>`,
-                            type: 'mention'
-                        }
-                        activity = {
-                            type: 'message',
-                            text: `<at>${ user.displayName }</at>`,
-                            entities: [mention]
-                        }
-                        await this.client.conversations.replyToActivity(initialConversation.id, initialConversation.activityId, activity)
-                    })
+                    await this.notifyUsersOfActivity(usersToNotify, initialConversation.id, initialConversation.activityId)
                 }
             } else if(context.activity.name === 'resolved') {
                 var templatePayload = {
@@ -213,12 +194,15 @@ class TeamsBot extends TeamsActivityHandler {
                 const card = CardFactory.adaptiveCard(expandedCard);
                 var activity =  MessageFactory.attachment(card);
 
-                let storeItems = await this.storage.read(["incidents"]);
-                let { incidents } = storeItems;
+                let storeItems = await this.storage.read(["users","incidents"]);
+                let { users, incidents } = storeItems;
                 let initialIncident = incidents.filter(i => i.id === context.activity.data.incidentId)[0]
                 let { conversation } = initialIncident
                 MicrosoftAppCredentials.trustServiceUrl(this.serviceUrl);
-                await this.client.conversations.replyToActivity(conversation.id, conversation.activityId, activity) 
+                await this.client.conversations.replyToActivity(conversation.id, conversation.activityId, activity)
+
+                let usersToNotify = users.filter(u => context.activity.usersToNotify.some(user => u.aadObjectId == user.id))
+                await this.notifyUsersOfActivity(usersToNotify, conversation.id, conversation.activityId) 
             }
             await next();
         }); 
@@ -231,6 +215,22 @@ class TeamsBot extends TeamsActivityHandler {
         } catch(err) {
             console.log(err)
         }
+    }
+
+    async notifyUsersOfActivity(usersToNotify, conversationId, activityId) {
+        usersToNotify.forEach(async user => {
+            let mention = {
+                mentioned: user,
+                text: `<at>${user.displayName}</at>`,
+                type: 'mention'
+            }
+            let activity = {
+                type: 'message',
+                text: `<at>${ user.displayName }</at>`,
+                entities: [mention]
+            }
+            await this.client.conversations.replyToActivity(conversationId, activityId, activity)
+        })
     }
 }
 
