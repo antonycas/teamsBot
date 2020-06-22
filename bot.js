@@ -19,13 +19,23 @@ class TeamsBot extends TeamsActivityHandler {
             storageAccountOrConnectionString: process.env.BLOB_STRING
         });
 
+        this.onMessage(async (context, next) => {
+            const mention = {
+                mentioned: context.activity.from,
+                text: `<at>${context.activity.from}</at>`,
+                type: 'mention'
+            }
+            const activity = MessageFactory.text(`Hello ${mention.text}`);
+            await context.sendActivity(activity)
+            await next();
+        })
+
         this.onConversationUpdate(async (context, next) => {
             if(context.activity.membersAdded.length > 1) {
                 let { membersAdded } = context.activity;
                 let storeItems = await this.storage.read(["users"]);
                 let users = storeItems["users"]
                 if(typeof (users) != 'undefined') {
-                    console.log('got here')
                     membersAdded.forEach(adddedMember => {
                         if(!storeItems.users.some(user => user.id === adddedMember.id)) {
                             storeItems.users.push(adddedMember)
@@ -45,7 +55,6 @@ class TeamsBot extends TeamsActivityHandler {
                 
                 let storeItems = await this.storage.read(["users", "incidents"])
                 let { users, incidents } = storeItems;
-                let usersToNotify = users.filter(u => context.activity.usersToNotify.some(user => u.aadObjectId == user.id))
                 
                 if (typeof (incidents) === 'undefined') { storeItems.incidents = [] }
                 if (incidents.some(i => { return i.id === context.activity.data.incidentId })) {
@@ -122,12 +131,15 @@ class TeamsBot extends TeamsActivityHandler {
                     
                     MicrosoftAppCredentials.trustServiceUrl(this.serviceUrl);
                     const initialConversation = await this.client.conversations.createConversation(conversationParams);
-
+                    
                     storeItems.incidents.push({
                         id: context.activity.data.incidentId,
                         conversation: initialConversation 
                     })
                     this.saveData(storeItems)
+
+                    let usersToNotify = users.filter(u => context.activity.usersToNotify.some(user => u.aadObjectId == user.id))
+                    this.getUserDisplayNamesFromContext(context, usersToNotify);
                     await this.notifyUsersOfActivity(usersToNotify, initialConversation.id, initialConversation.activityId)
                 }
             } else if(context.activity.name === 'resolved') {
@@ -202,6 +214,7 @@ class TeamsBot extends TeamsActivityHandler {
                 await this.client.conversations.replyToActivity(conversation.id, conversation.activityId, activity)
 
                 let usersToNotify = users.filter(u => context.activity.usersToNotify.some(user => u.aadObjectId == user.id))
+                this.getUserDisplayNamesFromContext(context, usersToNotify);
                 await this.notifyUsersOfActivity(usersToNotify, conversation.id, conversation.activityId) 
             }
             await next();
@@ -224,12 +237,15 @@ class TeamsBot extends TeamsActivityHandler {
                 text: `<at>${user.displayName}</at>`,
                 type: 'mention'
             }
-            let activity = {
-                type: 'message',
-                text: `<at>${ user.displayName }</at>`,
-                entities: [mention]
-            }
+            let activity = MessageFactory.text(`${user.displayName} ${mention.text}`)
+            activity.entities = [mention]
             await this.client.conversations.replyToActivity(conversationId, activityId, activity)
+        })
+    }
+
+    getUserDisplayNamesFromContext(context, users) {
+        users.forEach(user => {
+            user.displayName = context.activity.usersToNotify.filter(u=> { return u.id === user.aadObjectId })[0].displayName
         })
     }
 }
