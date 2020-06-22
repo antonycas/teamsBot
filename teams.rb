@@ -18,6 +18,16 @@ def todays_channel(ms_graph_client, team_id)
   (channel.nil?) ? ms_graph_client.create_teams_channel(team_id, date_string, date_string) : channel 
 end
 
+def start_conversation_with_bot(direct_channel_secret)
+  command = "curl -X POST -H 'Authorization: Bearer #{direct_channel_secret}' -H 'Content-Type: application/json' -d '' 'https://directline.botframework.com/v3/directline/conversations'"
+  JSON.parse(`#{command}`)
+end
+
+def send_activity_to_bot(direct_channel_secret, activity, conversation_id)
+  command = "curl -H 'Authorization: Bearer #{direct_channel_secret}' -H 'Content-Type: application/json' -d '#{activity}' 'https://directline.botframework.com/v3/directline/conversations/#{conversation_id}/activities'"
+  `#{command}`
+end
+
 client_id = "269ab60d-9dd1-4a29-a4b5-807f788ada90" # id of registered app on azure portal
 client_secret = "Dt~u~BtwGWJh8u-~gM9u0-8XN-o04-B8S1" # secret key generated in dashboard of registered app
 aad_name = "antcasdev.onmicrosoft.com" # microsoft aad_name, i.e antcasdev.onmicrosoft.com
@@ -41,13 +51,7 @@ elsif data['status'] == 'error'
   team_id = '9b41ef88-1ea6-4ffa-915d-81e27c0e3ae1'
   channel = todays_channel(ms_graph_client,team_id)
 
-  # # start a conversation with the bot
-  command = "curl -X POST -H 'Authorization: Bearer #{direct_channel_secret}' -H 'Content-Type: application/json' -d '' 'https://directline.botframework.com/v3/directline/conversations'"
-  conversation = JSON.parse(`#{command}`)
-  
-  error_message = "There has been an error" 
-  # send activity to started conversation
-  conversation_id = conversation['conversationId']
+  conversation = start_conversation_with_bot(direct_channel_secret)
   activity = {
     type: 'event',
     name: 'error',
@@ -57,17 +61,10 @@ elsif data['status'] == 'error'
     data: data,
     teamsChannelId: channel['id'],
     usersToNotify: users_to_notify
-  }.to_json
-  
-  command = "curl -H 'Authorization: Bearer #{direct_channel_secret}' -H 'Content-Type: application/json' -d '#{activity}' 'https://directline.botframework.com/v3/directline/conversations/#{conversation_id}/activities'"
-  x = `#{command}`
+  }.to_json 
+  send_activity_to_bot(direct_channel_secret, activity, conversation['conversationId'])
 elsif data['status'] == 'resolved'
-  # # start a conversation with the bot
-  command = "curl -X POST -H 'Authorization: Bearer #{direct_channel_secret}' -H 'Content-Type: application/json' -d '' 'https://directline.botframework.com/v3/directline/conversations'"
-  conversation = JSON.parse(`#{command}`)
-
-  # send activity to started conversation
-  conversation_id = conversation['conversationId']
+  conversation = start_conversation_with_bot(direct_channel_secret)
   activity = {
     type: 'event',
     name: 'resolved',
@@ -77,8 +74,5 @@ elsif data['status'] == 'resolved'
     data: data,
     usersToNotify: users_to_notify
   }.to_json
-  
-  
-  command = "curl -H 'Authorization: Bearer #{direct_channel_secret}' -H 'Content-Type: application/json' -d '#{activity}' 'https://directline.botframework.com/v3/directline/conversations/#{conversation_id}/activities'"
-  x = `#{command}`
+  send_activity_to_bot(direct_channel_secret, activity, conversation['conversationId'])
 end
