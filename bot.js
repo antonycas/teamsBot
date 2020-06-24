@@ -19,17 +19,6 @@ class TeamsBot extends TeamsActivityHandler {
             storageAccountOrConnectionString: process.env.BLOB_STRING
         });
 
-        this.onMessage(async (context, next) => {
-            const mention = {
-                mentioned: context.activity.from,
-                text: `<at>${context.activity.from}</at>`,
-                type: 'mention'
-            }
-            const activity = MessageFactory.text(`Hello ${mention.text}`);
-            await context.sendActivity(activity)
-            await next();
-        })
-
         this.onConversationUpdate(async (context, next) => {
             if(context.activity.membersAdded.length > 1) {
                 let { membersAdded } = context.activity;
@@ -215,7 +204,11 @@ class TeamsBot extends TeamsActivityHandler {
 
                 let usersToNotify = users.filter(u => context.activity.usersToNotify.some(user => u.aadObjectId == user.id))
                 this.getUserDisplayNamesFromContext(context, usersToNotify);
-                await this.notifyUsersOfActivity(usersToNotify, conversation.id, conversation.activityId) 
+                await this.notifyUsersOfActivity(usersToNotify, conversation.id, conversation.activityId)
+                
+                let index = storeItems.incidents.indexOf(initialIncident);
+                storeItems.incidents.splice(index,1)
+                this.saveData(storeItems);
             }
             await next();
         }); 
