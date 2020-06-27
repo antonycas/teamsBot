@@ -1,4 +1,5 @@
 require('uri')
+require('cgi')
 
 class MSGraphClient
 
@@ -26,6 +27,12 @@ class MSGraphClient
 
 	def get_user(user_pricipal_name)
 		JSON.parse(`curl -H 'Authorization: #{access_token}' 'https://graph.microsoft.com/v1.0/users/#{user_pricipal_name}'`)
+	end
+
+	def add_member_to_team(team_id, member_id)
+		url = "https://graph.microsoft.com/v1.0/groups/#{team_id}/members/%24ref"
+		request_body = { '@odata.id': "https://graph.microsoft.com/v1.0/directoryObjects/#{member_id}" }.to_json
+		`curl -H 'Authorization: #{access_token}' -H 'Content-Type: application/json' -d '#{request_body}' #{url}`
 	end
 
 	def list_channels(group_id)

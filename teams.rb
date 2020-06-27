@@ -42,13 +42,15 @@ user_emails.each {|e| users_to_notify << ms_graph_client.get_user(e) }
 if data['status'] == nil
   abort('No status provided.')
 elsif data['status'] == 'error'
-  teams_app_id = '500f16aa-318c-4bdc-a8ae-05855567d31a'
-  users_to_notify.each do |u|
-    installed_apps = ms_graph_client.get_installed_apps(u['id'])
-    new_app_installation = ms_graph_client.install_teams_app(u['id'], teams_app_id) if installed_apps.none? {|a| a['teamsAppDefinition']['teamsAppId'] == teams_app_id }
-  end
-  
   team_id = '9b41ef88-1ea6-4ffa-915d-81e27c0e3ae1'
+  teams_app_id = '500f16aa-318c-4bdc-a8ae-05855567d31a'
+  team_members = ms_graph_client.get_members(team_id)
+  users_to_notify.each do |u|
+    ms_graph_client.add_member_to_team(team_id, u['id']) if team_members.none? {|m| m['id'] == u['id']}
+    installed_apps = ms_graph_client.get_installed_apps(u['id'])
+    ms_graph_client.install_teams_app(u['id'], teams_app_id) if installed_apps.none? {|a| a['teamsAppDefinition']['teamsAppId'] == teams_app_id }
+  end
+
   channel = todays_channel(ms_graph_client,team_id)
 
   conversation = start_conversation_with_bot(direct_channel_secret)
@@ -56,12 +58,12 @@ elsif data['status'] == 'error'
     type: 'event',
     name: 'error',
     from: {
-      id: 'errorBot'
+      id: 'errorBot' 
     },
     data: data,
     teamsChannelId: channel['id'],
     usersToNotify: users_to_notify
-  }.to_json 
+  }.to_json
   send_activity_to_bot(direct_channel_secret, activity, conversation['conversationId'])
 elsif data['status'] == 'resolved'
   conversation = start_conversation_with_bot(direct_channel_secret)
