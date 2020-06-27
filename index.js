@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 const path = require("path");
 const restify = require('restify');
 const teams = require('botbuilder-teams');
+const fs = require('fs')
 
 // Import required bot services.
 // See https://aka.ms/bot-services to learn more about the different parts of a bot.
@@ -53,7 +54,9 @@ adapter.onTurnError = async (context, error) => {
 };
 
 // Create the main dialog.
-const myBot = new TeamsBot();
+let data = fs.readFileSync('config.json');
+let config = JSON.parse(data)
+const myBot = new TeamsBot(config);
 
 // Listen for incoming requests.
 server.post('/api/messages', (req, res) => {

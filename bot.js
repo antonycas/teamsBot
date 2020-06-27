@@ -8,12 +8,12 @@ const { BlobStorage } = require('botbuilder-azure')
 
 
 class TeamsBot extends TeamsActivityHandler {
-    constructor() {
+    constructor(config) {
         super();
 
-        this.serviceUrl = 'https://smba.trafficmanager.net/uk/';
+        this.config = config;
         this.credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-        this.client = new ConnectorClient(this.credentials, {baseUri: this.serviceUrl });
+        this.client = new ConnectorClient(this.credentials, {baseUri: this.config.serviceUrl });
         this.storage = new BlobStorage({
             containerName: process.env.BLOB_NAME,
             storageAccountOrConnectionString: process.env.BLOB_STRING
@@ -39,8 +39,13 @@ class TeamsBot extends TeamsActivityHandler {
             }
         })
 
+        this.onMessage(async (context, next) => {
+            await context.sendActivity(MessageFactory.text(JSON.stringify(this.config)))
+            await next();
+        })
+
         this.onEvent(async (context, next) => {
-            if(context.activity.name === 'error') {
+            if(context.activity.name === this.config.errorString) {
                 
                 let storeItems = await this.storage.read(["users", "incidents"])
                 let { users, incidents } = storeItems;
@@ -117,8 +122,8 @@ class TeamsBot extends TeamsActivityHandler {
                         },
                         activity: activity
                     }
-                    
-                    MicrosoftAppCredentials.trustServiceUrl(this.serviceUrl);
+
+                    MicrosoftAppCredentials.trustServiceUrl(this.config.serviceUrl);
                     const initialConversation = await this.client.conversations.createConversation(conversationParams);
                     
                     storeItems.incidents.push({
@@ -131,7 +136,7 @@ class TeamsBot extends TeamsActivityHandler {
                     this.getUserDisplayNamesFromContext(context, usersToNotify);
                     await this.notifyUsersOfActivity(usersToNotify, initialConversation.id, initialConversation.activityId)
                 }
-            } else if(context.activity.name === 'resolved') {
+            } else if(context.activity.name === this.config.resolvedString) {
                 var templatePayload = {
                     "type": "AdaptiveCard",
                     "version": "1.0",
@@ -199,7 +204,7 @@ class TeamsBot extends TeamsActivityHandler {
                 let { users, incidents } = storeItems;
                 let initialIncident = incidents.filter(i => i.id === context.activity.data.incidentId)[0]
                 let { conversation } = initialIncident
-                MicrosoftAppCredentials.trustServiceUrl(this.serviceUrl);
+                MicrosoftAppCredentials.trustServiceUrl(this.config.serviceUrl);
                 await this.client.conversations.replyToActivity(conversation.id, conversation.activityId, activity)
 
                 let usersToNotify = users.filter(u => context.activity.usersToNotify.some(user => u.aadObjectId == user.id))
