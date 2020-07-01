@@ -12,7 +12,7 @@ def display_name(string)
 end
 
 def todays_channel(ms_graph_client, team_id)
-  date_string = Time.new.strftime("%d_%m_%y") 
+  date_string = Time.new.strftime("%d_%m_%Y") 
   channels = ms_graph_client.list_channels(team_id)
   channel = channels.find { |c| c['displayName'].split(' ').first == date_string }
   (channel.nil?) ? ms_graph_client.create_teams_channel(team_id, date_string, date_string) : channel 
@@ -28,11 +28,11 @@ def send_activity_to_bot(direct_channel_secret, activity, conversation_id)
   `#{command}`
 end
 
-client_id = "269ab60d-9dd1-4a29-a4b5-807f788ada90" # id of registered app on azure portal
-client_secret = "Dt~u~BtwGWJh8u-~gM9u0-8XN-o04-B8S1" # secret key generated in dashboard of registered app
+data = JSON.parse(ARGV[0])
+client_id = data['clientId'] # id of registered app on azure portal
+client_secret = data['clientSecret'] # secret key generated in dashboard of registered app
 aad_name = "antcasdev.onmicrosoft.com" # microsoft aad_name, i.e antcasdev.onmicrosoft.com
-direct_channel_secret = ARGV[0] 
-data = JSON.parse(ARGV[1])
+direct_channel_secret = data['directChannelSecret'] 
 ms_graph_client = MSGraphClient.new(client_id, client_secret, aad_name)
 
 users_to_notify = []
@@ -42,8 +42,8 @@ user_emails.each {|e| users_to_notify << ms_graph_client.get_user(e) }
 if data['status'] == nil
   abort('No status provided.')
 elsif data['status'] == 'error'
-  team_id = '9b41ef88-1ea6-4ffa-915d-81e27c0e3ae1'
-  teams_app_id = '500f16aa-318c-4bdc-a8ae-05855567d31a'
+  team_id = data['teamId']
+  teams_app_id = data['teamsAppId']
   team_members = ms_graph_client.get_members(team_id)
   users_to_notify.each do |u|
     ms_graph_client.add_member_to_team(team_id, u['id']) if team_members.none? {|m| m['id'] == u['id']}
@@ -52,6 +52,7 @@ elsif data['status'] == 'error'
   end
 
   channel = todays_channel(ms_graph_client,team_id)
+  data['date'] = Time.now.strftime("%d/%m/%Y %H:%M") 
 
   conversation = start_conversation_with_bot(direct_channel_secret)
   activity = {
@@ -66,6 +67,7 @@ elsif data['status'] == 'error'
   }.to_json
   send_activity_to_bot(direct_channel_secret, activity, conversation['conversationId'])
 elsif data['status'] == 'resolved'
+  data['date'] = Time.now.strftime("%d/%m/%Y %H:%M")
   conversation = start_conversation_with_bot(direct_channel_secret)
   activity = {
     type: 'event',
