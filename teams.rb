@@ -32,29 +32,20 @@ data = JSON.parse(ARGV[0])
 client_id = data['clientId'] # id of registered app on azure portal
 client_secret = data['clientSecret'] # secret key generated in dashboard of registered app
 aad_name = "antcasdev.onmicrosoft.com" # microsoft aad_name, i.e antcasdev.onmicrosoft.com
-direct_line_secret = data['directLineSecret'] 
+direct_line_secret = data['directLineSecret']
+team_id = data['teamId']
+teams_app_id = data['teamsAppId']
 ms_graph_client = MSGraphClient.new(client_id, client_secret, aad_name)
+
+data['date'] = Time.now.strftime("%d/%m/%Y %H:%M")
 
 users_to_notify = []
 user_emails = data['usersToNotify']
 user_emails.each {|e| users_to_notify << ms_graph_client.get_user(e) }
 
-if data['status'] == nil
-  abort('No status provided.')
-elsif data['status'] == 'error'
-  team_id = data['teamId']
-  teams_app_id = data['teamsAppId']
-  team_members = ms_graph_client.get_members(team_id)
-  users_to_notify.each do |u|
-    ms_graph_client.add_member_to_team(team_id, u['id']) if team_members.none? {|m| m['id'] == u['id']}
-    installed_apps = ms_graph_client.get_installed_apps(u['id'])
-    ms_graph_client.install_teams_app(u['id'], teams_app_id) if installed_apps.none? {|a| a['teamsAppDefinition']['teamsAppId'] == teams_app_id }
-  end
-
+abort('No status provided.') if data['status'] == nil
+if data['status'] == 'error'
   channel = todays_channel(ms_graph_client,team_id)
-  data['date'] = Time.now.strftime("%d/%m/%Y %H:%M") 
-
-  conversation = start_conversation_with_bot(direct_line_secret)
   activity = {
     type: 'event',
     name: 'error',
@@ -65,10 +56,7 @@ elsif data['status'] == 'error'
     teamsChannelId: channel['id'],
     usersToNotify: users_to_notify
   }.to_json
-  send_activity_to_bot(direct_line_secret, activity, conversation['conversationId'])
 elsif data['status'] == 'resolved'
-  data['date'] = Time.now.strftime("%d/%m/%Y %H:%M")
-  conversation = start_conversation_with_bot(direct_line_secret)
   activity = {
     type: 'event',
     name: 'resolved',
@@ -78,5 +66,15 @@ elsif data['status'] == 'resolved'
     data: data,
     usersToNotify: users_to_notify
   }.to_json
-  send_activity_to_bot(direct_line_secret, activity, conversation['conversationId'])
 end
+
+team_members = ms_graph_client.get_members(team_id)
+users_to_notify.each do |u|
+  ms_graph_client.add_member_to_team(team_id, u['id']) if team_members.none? {|m| m['id'] == u['id']}
+  installed_apps = ms_graph_client.get_installed_apps(u['id'])
+  ms_graph_client.install_teams_app(u['id'], teams_app_id) if installed_apps.none? {|a| a['teamsAppDefinition']['teamsAppId'] == teams_app_id }
+end 
+ 
+conversation = start_conversation_with_bot(direct_line_secret)
+send_activity_to_bot(direct_line_secret, activity, conversation['conversationId'])
+
