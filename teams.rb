@@ -32,7 +32,7 @@ data = JSON.parse(ARGV[0])
 client_id = data['clientId'] # id of registered app on azure portal
 client_secret = data['clientSecret'] # secret key generated in dashboard of registered app
 aad_name = "antcasdev.onmicrosoft.com" # microsoft aad_name, i.e antcasdev.onmicrosoft.com
-direct_channel_secret = data['directChannelSecret'] 
+direct_line_secret = data['directLineSecret'] 
 ms_graph_client = MSGraphClient.new(client_id, client_secret, aad_name)
 
 users_to_notify = []
@@ -54,7 +54,7 @@ elsif data['status'] == 'error'
   channel = todays_channel(ms_graph_client,team_id)
   data['date'] = Time.now.strftime("%d/%m/%Y %H:%M") 
 
-  conversation = start_conversation_with_bot(direct_channel_secret)
+  conversation = start_conversation_with_bot(direct_line_secret)
   activity = {
     type: 'event',
     name: 'error',
@@ -65,10 +65,10 @@ elsif data['status'] == 'error'
     teamsChannelId: channel['id'],
     usersToNotify: users_to_notify
   }.to_json
-  send_activity_to_bot(direct_channel_secret, activity, conversation['conversationId'])
+  send_activity_to_bot(direct_line_secret, activity, conversation['conversationId'])
 elsif data['status'] == 'resolved'
   data['date'] = Time.now.strftime("%d/%m/%Y %H:%M")
-  conversation = start_conversation_with_bot(direct_channel_secret)
+  conversation = start_conversation_with_bot(direct_line_secret)
   activity = {
     type: 'event',
     name: 'resolved',
@@ -78,5 +78,5 @@ elsif data['status'] == 'resolved'
     data: data,
     usersToNotify: users_to_notify
   }.to_json
-  send_activity_to_bot(direct_channel_secret, activity, conversation['conversationId'])
+  send_activity_to_bot(direct_line_secret, activity, conversation['conversationId'])
 end
