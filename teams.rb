@@ -77,4 +77,3 @@ end
  
 conversation = start_conversation_with_bot(direct_line_secret)
 send_activity_to_bot(direct_line_secret, activity, conversation['conversationId'])
-
