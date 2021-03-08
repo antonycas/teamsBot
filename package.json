@@ -20,7 +20,7 @@
         "botbuilder": "~4.7.0",
         "botbuilder-azure": "^4.9.2",
         "botbuilder-teams": "^4.0.0-beta1",
-        "botframework-connector": "^4.9.0",
+        "botframework-connector": "^4.9.4",
         "dotenv": "^8.2.0",
         "install": "^0.13.0",
         "ms-rest-js": "^1.0.1",
